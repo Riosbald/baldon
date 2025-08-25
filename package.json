@@ -1,0 +1,38 @@
+{
+  "name": "logon-voice-agent",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "next dev -H 0.0.0.0 -p 12000",
+    "dev:12001": "next dev -H 0.0.0.0 -p 12001",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 12000",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "private": "true",
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "hark": "^1.2.3",
+    "next": "^14.2.5",
+    "openai": "^4.56.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.3",
+    "zod": "^3.23.8"
+  }
+}
