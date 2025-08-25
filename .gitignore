@@ -1,1 +1,8 @@
 node_modules
+
+.next
+.vscode
+.openhands
+var
+coverage
+playwright-report
