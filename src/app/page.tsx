@@ -215,8 +215,26 @@ export default function HomePage() {
     }
   };
 
-  const toggleScreenShare = async () => {
-    setScreenEnabled((s) => !s);
+  
+const captureFrames = async () => {
+  const video = videoRef.current; if (!video) return;
+  const canvas = document.createElement('canvas');
+  const W = 640, H = 360; canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d'); if (!ctx) return;
+  while (screenEnabled) {
+    try {
+      ctx.drawImage(video, 0, 0, W, H);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+      if (blob) {
+        await fetch('/api/vision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context: 'frame-captured' }) });
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 1200));
+  }
+};
+
+const toggleScreenShare = async () => {
+    setScreenEnabled((s) => !s); if (!screenEnabled) { setTimeout(captureFrames, 400); }
     if (!screenEnabled) {
       setAnalysisStatus('analyzing');
       setTimeout(() => setAnalysisStatus('idle'), 1200);
