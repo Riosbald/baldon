@@ -7,4 +7,7 @@ export type Settings = {
   videoQuality?: '1080p'|'720p'|'480p'
   systemPrompt?: string
   industryTemplate?: string
+  ttsProvider?: 'elevenlabs'|'google'|'aws'
+  sttProvider?: 'openai'|'google'|'aws'
+  voice?: string
 }

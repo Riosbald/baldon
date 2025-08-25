@@ -127,19 +127,93 @@ export default function HomePage() {
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('google');
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const agentAnalyserRef = useRef<AnalyserNode | null>(null);
+  const agentAudioCtxRef = useRef<AudioContext | null>(null);
+  const mediaSourceRef = useRef<MediaSource | null>(null);
+  const sourceBufferRef = useRef<SourceBuffer | null>(null);
+  const pendingChunksRef = useRef<Uint8Array[]>([]);
+  const isAppendingRef = useRef(false);
+
+  const setupAgentVisualizer = () => {
+    if (agentAnalyserRef.current) return;
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    agentAudioCtxRef.current = ctx;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    agentAnalyserRef.current = analyser;
+  };
+
+  const animateAgentVisualizer = () => {
+    const analyser = agentAnalyserRef.current; if (!analyser) return;
+    const bars = document.querySelectorAll('#agentVisualizer .bar');
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const loop = () => {
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a,b)=>a+b,0)/data.length; setAgentSpeaking(avg>12);
+      bars.forEach((bar, i) => { (bar as HTMLElement).style.height = `${Math.max(4, (data[i%data.length]/255)*50)}px`; });
+      requestAnimationFrame(loop);
+    };
+    loop();
+  };
+
+  const ensureMediaSource = async (): Promise<HTMLAudioElement> => {
+    setupAgentVisualizer();
+    const audioEl = ttsAudioRef.current || new Audio();
+    ttsAudioRef.current = audioEl;
+    if (!mediaSourceRef.current) {
+      const ms = new MediaSource();
+      mediaSourceRef.current = ms;
+      audioEl.src = URL.createObjectURL(ms);
+      ms.addEventListener('sourceopen', () => {
+        try {
+          const sb = ms.addSourceBuffer('audio/mpeg');
+          sourceBufferRef.current = sb;
+          sb.addEventListener('updateend', () => {
+            isAppendingRef.current = false;
+            const next = pendingChunksRef.current.shift();
+            if (next && !sb.updating) { isAppendingRef.current = true; sb.appendBuffer(next); }
+          });
+        } catch (e) { console.error('SourceBuffer error', e); }
+      });
+    }
+    // Connect analyser
+    const ctx = agentAudioCtxRef.current!;
+    const srcNode = ctx.createMediaElementSource(audioEl);
+    srcNode.connect(agentAnalyserRef.current!);
+    agentAnalyserRef.current!.connect(ctx.destination);
+    animateAgentVisualizer();
+    return audioEl;
+  };
+
   const speak = async (text: string) => {
     if (!ttsEnabled || !text) return;
-    try {
-      const a = ttsAudioRef.current || new Audio();
-      ttsAudioRef.current = a;
-      a.src = `/api/tts?${new URLSearchParams({ text, voice, provider: ttsProvider, stream: '1' }).toString()}`;
-      a.onplay = () => setAgentSpeaking(true);
-      a.onended = () => setAgentSpeaking(false);
-      a.onerror = () => setAgentSpeaking(false);
-      await a.play();
-    } catch (e) {
-      console.error(e);
-    }
+    const audioEl = await ensureMediaSource();
+    const url = `/api/tts?${new URLSearchParams({ text, voice, provider: ttsProvider, stream: '1' }).toString()}`;
+    const res = await fetch(url);
+    if (!res.ok || !res.body) return;
+    const reader = res.body.getReader();
+    const pump = async () => {
+      const { done, value } = await reader.read();
+      if (done) { mediaSourceRef.current?.endOfStream?.(); return; }
+      if (value) {
+        const sb = sourceBufferRef.current;
+        const chunk = new Uint8Array(value);
+        if (sb) {
+          if (!sb.updating && !isAppendingRef.current) { isAppendingRef.current = true; sb.appendBuffer(chunk); }
+          else pendingChunksRef.current.push(chunk);
+        } else {
+          // Fallback: assign to src directly if MSE not ready
+          const blob = new Blob([chunk], { type: 'audio/mpeg' });
+          audioEl.src = URL.createObjectURL(blob);
+        }
+      }
+      pump();
+    };
+    audioEl.onplay = () => setAgentSpeaking(true);
+    audioEl.onended = () => setAgentSpeaking(false);
+    audioEl.onerror = () => setAgentSpeaking(false);
+    if (audioEl.paused) await audioEl.play().catch(()=>{});
+    pump();
   };
 
   const send = async () => {
