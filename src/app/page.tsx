@@ -226,7 +226,8 @@ const captureFrames = async () => {
       ctx.drawImage(video, 0, 0, W, H);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
       if (blob) {
-        await fetch('/api/vision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ context: 'frame-captured' }) });
+        const dataUrl = canvas.toDataURL('image/png');
+        await fetch('/api/vision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: dataUrl }) });
       }
     } catch {}
     await new Promise(r => setTimeout(r, 1200));
