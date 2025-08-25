@@ -12,7 +12,7 @@ type VoiceOption = 'male-professional' | 'female-professional' | 'male-casual' |
 type Language = 'en' | 'es' | 'fr' | 'de' | 'zh' | 'ja';
 
 export default function HomePage() {
-  const [model, setModel] = useState<ModelKey>('deepseek-r1');
+  const [model, setModel] = useState<ModelKey>('gpt-4o');
   const [connected, setConnected] = useState(true);
   const [responseTime, setResponseTime] = useState('~1.2s');
   const [voice, setVoice] = useState<VoiceOption>('male-professional');
