@@ -61,3 +61,23 @@ npm run start
 
 ## Notes
 - WebRTC signaling server example in server/ws-server.js
+
+
+## Authentication (optional)
+
+- Set AUTH_REQUIRED=true and ADMIN_PASSWORD in environment to enable a simple cookie-based login.
+- SESSION_SECRET should be set for signed session cookies.
+
+## Persistence
+
+- Settings are stored per-session in var/data/settings.json (file-based KV). Set DATA_DIR to customize location. For production, replace with Redis or a managed KV/DB.
+
+## Provider Keys
+
+- OPENAI_API_KEY and optional OPENAI_BASE_URL (for OpenRouter, DeepSeek, etc.)
+- ANTHROPIC_API_KEY (for Claude)
+- ELEVENLABS_API_KEY (for TTS)
+
+## WebRTC Signaling
+
+- A lightweight signaling server is in server/ws-server.js. Start it separately: node server/ws-server.js (WS_PORT env supported).
