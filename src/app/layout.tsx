@@ -14,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
+        <link rel="icon" href="/favicon.ico" />
         <header className="sticky top-0 z-40 border-b border-white/5 bg-bg/80 backdrop-blur">
           <div className="container-app flex items-center justify-between py-3 gap-4">
             <div className="flex items-center gap-3">

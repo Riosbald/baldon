@@ -22,6 +22,7 @@
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "@types/node": "^20.14.10",
+    "@types/pg": "^8.15.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
@@ -31,15 +32,18 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.873.0",
+    "@google-cloud/speech": "^7.2.0",
+    "@google-cloud/text-to-speech": "^6.2.0",
     "hark": "^1.2.3",
+    "ioredis": "^5.4.1",
     "next": "^14.2.5",
     "openai": "^4.56.0",
+    "pg": "^8.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^11.1.0",
     "ws": "^8.18.3",
-    "zod": "^3.23.8",
-    "ioredis": "^5.4.1",
-    "pg": "^8.12.0"
+    "zod": "^3.23.8"
   }
 }

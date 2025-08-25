@@ -123,14 +123,23 @@ export default function HomePage() {
     rec.start();
   };
 
-  const speak = (text: string) => {
-    if (!ttsEnabled) return;
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.0;
-    utter.pitch = voice.includes('female') ? 1.1 : 0.95;
-    utter.onstart = () => setAgentSpeaking(true);
-    utter.onend = () => setAgentSpeaking(false);
-    speechSynthesis.speak(utter);
+  type TTSProvider = 'elevenlabs' | 'google' | 'aws';
+  const [ttsProvider, setTtsProvider] = useState<TTSProvider>('google');
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const speak = async (text: string) => {
+    if (!ttsEnabled || !text) return;
+    try {
+      const a = ttsAudioRef.current || new Audio();
+      ttsAudioRef.current = a;
+      a.src = `/api/tts?${new URLSearchParams({ text, voice, provider: ttsProvider, stream: '1' }).toString()}`;
+      a.onplay = () => setAgentSpeaking(true);
+      a.onended = () => setAgentSpeaking(false);
+      a.onerror = () => setAgentSpeaking(false);
+      await a.play();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const send = async () => {
@@ -216,6 +225,7 @@ export default function HomePage() {
   };
 
   
+const lastVisionAt = { t: 0 };
 const captureFrames = async () => {
   const video = videoRef.current; if (!video) return;
   const canvas = document.createElement('canvas');
@@ -223,14 +233,21 @@ const captureFrames = async () => {
   const ctx = canvas.getContext('2d'); if (!ctx) return;
   while (screenEnabled) {
     try {
+      const now = Date.now();
+      if (now - lastVisionAt.t < 1100) { await new Promise(r => setTimeout(r, 200)); continue; }
       ctx.drawImage(video, 0, 0, W, H);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
-      if (blob) {
-        const dataUrl = canvas.toDataURL('image/png');
-        await fetch('/api/vision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: dataUrl }) });
+      const dataUrl = canvas.toDataURL('image/png');
+      setAnalysisStatus('analyzing');
+      const res = await fetch('/api/vision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: dataUrl }) });
+      const j = await res.json().catch(() => ({} as any));
+      const analysis = j?.analysis as string | undefined;
+      if (analysis && typeof analysis === 'string') {
+        setMessages((m) => [...m, { id: uuid(), role: 'assistant', text: `[Vision] ${analysis}`, ts: nowTs() }]);
       }
+      lastVisionAt.t = now;
     } catch {}
-    await new Promise(r => setTimeout(r, 1200));
+    setAnalysisStatus('idle');
+    await new Promise(r => setTimeout(r, 200));
   }
 };
 
@@ -316,6 +333,11 @@ const toggleScreenShare = async () => {
             <div className="mt-3 flex items-center gap-3">
               <select className="select w-full" value={model} onChange={(e) => setModel(e.target.value as ModelKey)}>
                 {MODELS.map((m) => (<option key={m.key} value={m.key}>{m.label}</option>))}
+              </select>
+              <select className="select" value={ttsProvider} onChange={(e) => setTtsProvider(e.target.value as any)}>
+                <option value="elevenlabs">ElevenLabs</option>
+                <option value="google">Google TTS</option>
+                <option value="aws">AWS Polly</option>
               </select>
             </div>
           </div>

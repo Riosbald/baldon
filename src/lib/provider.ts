@@ -29,8 +29,7 @@ export async function streamUnified(req: ChatRequest): Promise<Response | null> 
       buffer += chunk
 
       // Split into lines for SSE/NDJSON
-      const lines = buffer.split(/?
-/)
+      const lines = buffer.split(/\r?\n/)
       buffer = lines.pop() || ''
 
       for (const line of lines) {
