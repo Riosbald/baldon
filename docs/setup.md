@@ -81,3 +81,9 @@ npm run start
 ## WebRTC Signaling
 
 - A lightweight signaling server is in server/ws-server.js. Start it separately: node server/ws-server.js (WS_PORT env supported).
+
+
+### Persistence backends
+- File-based (default): DATA_DIR path
+- Redis: set REDIS_URL (or UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN with a compatible client)
+- Postgres: set DATABASE_URL (pg driver will auto-create a `settings` table)

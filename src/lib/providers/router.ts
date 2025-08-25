@@ -1,33 +1,36 @@
 
 import { ChatRequest } from '#/lib/provider'
 
-export async function routeChat(req: ChatRequest) {
+export type ProviderKind = 'openai'|'anthropic'|'gemini'|'mistral'|'together'
+export type RoutedResponse = { provider: ProviderKind, res: Response }
+
+export async function routeChat(req: ChatRequest): Promise<RoutedResponse | null> {
   const model = req.model
-  if (model.startsWith('claude')) return streamAnthropic(req)
-  if (model.startsWith('gemini')) return streamGemini(req)
-  if (model.startsWith('mistral')) return streamMistral(req)
-  if (model.startsWith('llama') || model.includes('together')) return streamTogether(req)
-  return streamOpenAICompat(req)
+  if (model.startsWith('claude')) return { provider: 'anthropic', res: await streamAnthropic(req) }
+  if (model.startsWith('gemini')) return { provider: 'gemini', res: await streamGemini(req) }
+  if (model.startsWith('mistral')) return { provider: 'mistral', res: await streamMistral(req) }
+  if (model.startsWith('llama') || model.includes('together')) return { provider: 'together', res: await streamTogether(req) }
+  return { provider: 'openai', res: await streamOpenAICompat(req) }
 }
 
-// Default OpenAI-compatible endpoint
-async function streamOpenAICompat(req: ChatRequest) {
+// Default OpenAI-compatible endpoint (SSE)
+async function streamOpenAICompat(req: ChatRequest): Promise<Response> {
   const baseURL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return null
+  if (!apiKey) return new Response(null)
   const res = await fetch(baseURL + '/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ ...req, stream: true })
   })
   if (!res.ok) throw new Error(await res.text())
-  return res
+  return res as unknown as Response
 }
 
 // Anthropic (Claude) SSE
-async function streamAnthropic(req: ChatRequest) {
+async function streamAnthropic(req: ChatRequest): Promise<Response> {
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return null
+  if (!apiKey) return new Response(null)
   const sys = req.messages.find(m => m.role === 'system')?.content || ''
   const msgs = req.messages.filter(m => m.role !== 'system').map(m => (
     m.role === 'assistant' ? { role: 'assistant', content: m.content } : { role: 'user', content: m.content }
@@ -45,10 +48,10 @@ async function streamAnthropic(req: ChatRequest) {
   return new Response(res.body, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } })
 }
 
-// Google Gemini streaming via streamGenerateContent
-async function streamGemini(req: ChatRequest) {
+// Google Gemini streaming via streamGenerateContent (NDJSON)
+async function streamGemini(req: ChatRequest): Promise<Response> {
   const key = process.env.GEMINI_API_KEY
-  if (!key) return null
+  if (!key) return new Response(null)
   const sys = req.messages.find(m => m.role === 'system')?.content || ''
   const conv = req.messages.filter(m => m.role !== 'system').map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -63,14 +66,13 @@ async function streamGemini(req: ChatRequest) {
     body: JSON.stringify({ contents: conv, generationConfig: { temperature: req.temperature ?? 0.7 } })
   })
   if (!res.ok) throw new Error(await res.text())
-  // Response is a newline-delimited JSON stream
-  return new Response(res.body, { headers: { 'Content-Type': 'application/json; charset=utf-8' } })
+  return res as unknown as Response
 }
 
-// Mistral streaming (OpenAI-compatible chat API)
-async function streamMistral(req: ChatRequest) {
+// Mistral streaming (OpenAI-compatible chat API) SSE
+async function streamMistral(req: ChatRequest): Promise<Response> {
   const key = process.env.MISTRAL_API_KEY
-  if (!key) return null
+  if (!key) return new Response(null)
   const url = 'https://api.mistral.ai/v1/chat/completions'
   const res = await fetch(url, {
     method: 'POST',
@@ -81,10 +83,10 @@ async function streamMistral(req: ChatRequest) {
   return new Response(res.body, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } })
 }
 
-// Together AI (OpenAI-compatible)
-async function streamTogether(req: ChatRequest) {
+// Together AI (OpenAI-compatible) SSE
+async function streamTogether(req: ChatRequest): Promise<Response> {
   const key = process.env.TOGETHER_API_KEY
-  if (!key) return null
+  if (!key) return new Response(null)
   const url = 'https://api.together.xyz/v1/chat/completions'
   const res = await fetch(url, {
     method: 'POST',
